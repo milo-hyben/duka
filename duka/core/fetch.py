@@ -4,16 +4,18 @@ import threading
 import time
 from functools import reduce
 from io import BytesIO, DEFAULT_BUFFER_SIZE
+from asyncio_throttle import Throttler
 
 import requests
 
 from ..core.utils import Logger, is_dst
 
-URL = "https://www.dukascopy.com/datafeed/{currency}/{year}/{month:02d}/{day:02d}/{hour:02d}h_ticks.bi5"
+
+throttler = Throttler(rate_limit=50, period=6)
+
 ATTEMPTS = 5
 
-
-async def get(url):
+async def get(throttler, url):
     loop = asyncio.get_event_loop()
     buffer = BytesIO()
     id = url[35:].replace('/', " ")
@@ -21,7 +23,10 @@ async def get(url):
     Logger.info("Fetching {0}".format(id))
     for i in range(ATTEMPTS):
         try:
+            async with throttler:
+                Logger.debug(time.time(), 'Rate Limit')
             res = await loop.run_in_executor(None, lambda: requests.get(url, stream=True))
+            #print('res.headers', res.headers)
             if res.status_code == 200:
                 for chunk in res.iter_content(DEFAULT_BUFFER_SIZE):
                     buffer.write(chunk)
@@ -35,7 +40,7 @@ async def get(url):
             Logger.warn("Request {0} failed with exception : {1}".format(id, str(e)))
             time.sleep(0.5 * i)
 
-    raise Exception("Request failed for {0} after ATTEMPTS attempts".format(url))
+    raise Exception("Request failed for {0} after {1} attempts".format(url, ATTEMPTS))
 
 
 def create_tasks(symbol, day):
@@ -51,7 +56,7 @@ def create_tasks(symbol, day):
         'month': day.month - 1,
         'day': day.day
     }
-    tasks = [asyncio.ensure_future(get(URL.format(**url_info, hour=i))) for i in range(0, 24)]
+    tasks = [asyncio.ensure_future(get(throttler, URL.format(**url_info, hour=i))) for i in range(0, 24)] #24
 
     # if is_dst(day):
     #     next_day = day + datetime.timedelta(days=1)

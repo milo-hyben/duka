@@ -52,22 +52,9 @@ def avg(fetch_times):
         return -1
 
 
-def name(symbol, timeframe, start, end):
-    ext = ".csv"
+def app(symbols, start, end, throtteling, timeframes, folder, header):
+    threads = 10
 
-    for x in dir(TimeFrame):
-        if getattr(TimeFrame, x) == timeframe:
-            ts_str = x
-
-    name = symbol + "_" + ts_str + "_" + str(start)
-
-    if start != end:
-        name += "_" + str(end)
-
-    return name + ext
-
-
-def app(symbols, start, end, threads, timeframe, folder, header):
     if start > end:
         return
     lock = threading.Lock()
@@ -98,7 +85,7 @@ def app(symbols, start, end, threads, timeframe, folder, header):
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
 
-        files = {symbol: CSVDumper(symbol, timeframe, start, end, folder, header) for symbol in symbols}
+        files = {symbol: CSVDumper(symbol, timeframes, start, end, folder, header) for symbol in symbols}
 
         for symbol in symbols:
             for day in days(start, end):
