@@ -32,13 +32,29 @@ def valid_date(s):
         msg = "Not a valid date: '{0}'.".format(s)
         raise argparse.ArgumentTypeError(msg)
 
-
-def valid_timeframe(s):
-    try:
-        return getattr(TimeFrame, s.upper())
-    except AttributeError:
-        msg = "Not a valid time frame: '{0}'.".format(s)
+def valid_throtteling(timeframes_attr):
+    res = []
+    split = timeframes_attr.split("/")
+    if not len(split) is 2:
+        msg = "Throtteling needs to be 2 numbers e.g. 50/5. It was: '{0}'.".format(split)
         raise argparse.ArgumentTypeError(msg)
+    for s in split:
+        try:
+            res.append(int(s))
+        except ValueError:
+            msg = "Throtteling: Not a valid number: '{0}'.".format(s)
+            raise argparse.ArgumentTypeError(msg)
+    return res
+
+def valid_timeframes(timeframes_attr):
+    res = []
+    for s in timeframes_attr.split(","):
+        try:
+            res.append(getattr(TimeFrame, s.upper()))
+        except AttributeError:
+            msg = "Not a valid time frame: '{0}'.".format(s)
+            raise argparse.ArgumentTypeError(msg)
+    return res
 
 
 def is_debug_mode():
