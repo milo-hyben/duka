@@ -26,6 +26,7 @@ def main():
                         help='One or multiple Time frames to export. Example: TICK,H1. Accepted values: TICK M1 M2 M5 M10 M15 M30 H1 H4',
                         default=[TimeFrame.TICK])
     parser.add_argument('--header', action='store_true', help='include CSV header (default false)', default=False)
+    parser.add_argument('--local-time', action='store_true', help='use local time (default GMT)', default=False)
     args = parser.parse_args()
 
     if args.startdate is not None:
@@ -39,7 +40,7 @@ def main():
         end = args.day
 
     set_up_signals()
-    app(args.symbols, start, end, args.throtteling, args.timeframes, args.folder, args.header)
+    app(args.symbols, start, end, args.throtteling, args.timeframes, args.folder, args.header, args.local_time)
 
 
 if __name__ == '__main__':

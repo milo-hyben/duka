@@ -52,7 +52,7 @@ def avg(fetch_times):
         return -1
 
 
-def app(symbols, start, end, throtteling, timeframes, folder, header):
+def app(symbols, start, end, throtteling, timeframes, folder, header, local_time):
     threads = 10
 
     if start > end:
@@ -72,7 +72,7 @@ def app(symbols, start, end, throtteling, timeframes, folder, header):
         star_time = time.time()
         Logger.info("Fetching day {0}".format(day))
         try:
-            csv.append(day, decompress(symbol, day, fetch_day(symbol, day)))
+            csv.append(day, decompress(symbol, local_time, day, fetch_day(symbol, day)))
         except Exception as e:
             print("ERROR for {0}, {1} Exception : {2}".format(day, symbol, str(e)))
         elapsed_time = time.time() - star_time
@@ -85,7 +85,7 @@ def app(symbols, start, end, throtteling, timeframes, folder, header):
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
 
-        files = {symbol: CSVDumper(symbol, timeframes, start, end, folder, header) for symbol in symbols}
+        files = {symbol: CSVDumper(symbol, timeframes, start, end, folder, header, local_time) for symbol in symbols}
 
         for symbol in symbols:
             for day in days(start, end):

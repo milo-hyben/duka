@@ -8,7 +8,7 @@ VERSION = '0.2.1'
 setup(
     name=NAME,
     packages=find_packages(),
-    install_requires=['requests>=2.9.1'],
+    install_requires=['requests>=2.9.1', 'python-dateutil'],
     version=VERSION,
     description='Dukascopy Bank SA historical data downloader',
     author='Giuseppe Pes',

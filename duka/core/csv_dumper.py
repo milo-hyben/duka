@@ -39,7 +39,7 @@ def write_candle(writer, candle):
 
 
 class CSVDumper:
-    def __init__(self, symbol, timeframes, start, end, folder, header=False):
+    def __init__(self, symbol, timeframe, start, end, folder, header=False, local_time=False):
         self.symbol = symbol
         self.timeframes = timeframes
         self.start = start
@@ -47,6 +47,7 @@ class CSVDumper:
         self.folder = folder
         self.include_header = header
         self.buffers = {}
+        self.local_time = local_time
         for timeframe in timeframes:
             self.buffers[timeframe] = {}
 
@@ -82,6 +83,12 @@ class CSVDumper:
             if timeframe != TimeFrame.TICK and len(ticks) != 0:
                 self.buffers[timeframe][day].append(Candle(self.symbol, previous_key, timeframe, current_ticks))
 
+    def get_timezone(self):
+        if self.local_time:
+            return "local_time"
+        else:
+            return "GMT"
+
     def dump(self):
         # For each timeseries
         for timeframe in self.timeframes:
@@ -89,7 +96,7 @@ class CSVDumper:
             # The file name format
             file_name = TEMPLATE_FILE_NAME.format(self.symbol,
                                                   self.start.year, self.start.month, self.start.day,
-                                                  self.end.year, self.end.month, self.end.day, timeframe)
+                                                  self.end.year, self.end.month, self.end.day, self.get_timezone())
 
             Logger.info("Writing {0}".format(file_name))
 
