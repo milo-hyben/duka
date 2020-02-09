@@ -13,92 +13,93 @@ day_counter = 0
 
 
 def days(start, end):
-    if start > end:
-        return
-    end = end + timedelta(days=1)
-    today = date.today()
-    while start != end:
-        if start.weekday() != SATURDAY and start != today:
-            yield start
-        start = start + timedelta(days=1)
+	if start > end:
+		return
+	end = end + timedelta(days=1)
+	today = date.today()
+	while start != end:
+		if start.weekday() != SATURDAY and start != today:
+			yield start
+		start = start + timedelta(days=1)
 
 
 def format_left_time(seconds):
-    if seconds < 0:
-        return "--:--:--"
-    m, s = divmod(seconds, 60)
-    h, m = divmod(m, 60)
-    return "%d:%02d:%02d" % (h, m, s)
+	if seconds < 0:
+		return "--:--:--"
+	m, s = divmod(seconds, 60)
+	h, m = divmod(m, 60)
+	return "%d:%02d:%02d" % (h, m, s)
 
 
 def update_progress(done, total, avg_time_per_job, threads):
-    progress = 1 if total == 0 else done / total
-    progress = int((1.0 if progress > 1.0 else progress) * 100)
-    remainder = 100 - progress
-    estimation = (avg_time_per_job * (total - done) / threads)
-    if not is_debug_mode():
-        print('\r[{0}] {1}%  Left : {2}  '.format('#' * progress + '-' * remainder, progress,
-                                                  format_left_time(estimation)), end='')
+	progress = 1 if total == 0 else done / total
+	progress = int((1.0 if progress > 1.0 else progress) * 100)
+	remainder = 100 - progress
+	estimation = (avg_time_per_job * (total - done) / threads)
+	if not is_debug_mode():
+		print('\r[{0}] {1}%  Left : {2}  '.format('#' * progress + '-' * remainder, progress,
+												  format_left_time(estimation)), end='')
 
 
 def how_many_days(start, end):
-    return sum(1 for _ in days(start, end))
+	return sum(1 for _ in days(start, end))
 
 
 def avg(fetch_times):
-    if len(fetch_times) != 0:
-        return sum(fetch_times) / len(fetch_times)
-    else:
-        return -1
+	if len(fetch_times) != 0:
+		return sum(fetch_times) / len(fetch_times)
+	else:
+		return -1
 
 
 def app(symbols, start, end, throtteling, timeframes, folder, header, local_time):
-    threads = 10
+	threads = 10
 
-    if start > end:
-        return
-    lock = threading.Lock()
-    global day_counter
-    total_days = how_many_days(start, end)
+	if start > end:
+		return
+	lock = threading.Lock()
+	global day_counter
+	total_days = how_many_days(start, end)
 
-    if total_days == 0:
-        return
+	if total_days == 0:
+		return
 
-    last_fetch = deque([], maxlen=5)
-    update_progress(day_counter, total_days, -1, threads)
+	last_fetch = deque([], maxlen=5)
+	update_progress(day_counter, total_days, -1, threads)
 
-    def do_work(symbol, day, csv):
-        global day_counter
-        star_time = time.time()
-        Logger.info("Fetching day {0}".format(day))
-        try:
-            csv.append(day, decompress(symbol, local_time, day, fetch_day(symbol, day)))
-        except Exception as e:
-            print("ERROR for {0}, {1} Exception : {2}".format(day, symbol, str(e)))
-        elapsed_time = time.time() - star_time
-        last_fetch.append(elapsed_time)
-        with lock:
-            day_counter += 1
-        Logger.info("Day {0} fetched in {1}s".format(day, elapsed_time))
+	def do_work(symbol, day, csv):
+		global day_counter
+		star_time = time.time()
+		Logger.info("Fetching day {0}".format(day))
+		try:
+			csv.append(day, decompress(symbol, day, local_time, fetch_day(symbol, day, throtteling)))
+		except Exception as e:
+			print("ERROR for {0}, {1} Exception : {2}".format(day, symbol, str(e)))
+		elapsed_time = time.time() - star_time
+		last_fetch.append(elapsed_time)
+		with lock:
+			day_counter += 1
+		Logger.info("Day {0} fetched in {1}s".format(day, elapsed_time))
 
-    futures = []
+	futures = []
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
+	with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
 
-        files = {symbol: CSVDumper(symbol, timeframes, start, end, folder, header, local_time) for symbol in symbols}
+		files = {symbol: CSVDumper(symbol, timeframes, start, end, folder, header, local_time) for symbol in symbols}
 
-        for symbol in symbols:
-            for day in days(start, end):
-                futures.append(executor.submit(do_work, symbol, day, files[symbol]))
+		for symbol in symbols:
+			for day in days(start, end):
+				futures.append(executor.submit(do_work, symbol, day, files[symbol]))
 
-        for future in concurrent.futures.as_completed(futures):
-            if future.exception() is None:
-                update_progress(day_counter, total_days, avg(last_fetch), threads)
-            else:
-                Logger.error("An error happen when fetching data : ", future.exception())
+		for future in concurrent.futures.as_completed(futures):
+			if future.exception() is None:
+				update_progress(day_counter, total_days, avg(last_fetch), threads)
+			else:
+				Logger.error("An error happen when fetching data : ", future.exception())
 
-        Logger.info("Fetching data terminated")
-        for file in files.values():
-            file.dump()
+		Logger.info("Fetching data terminated")
+		for file in files.values():
+			#file.dumpFeather()
+			file.dump()
 
-    update_progress(day_counter, total_days, avg(last_fetch), threads)
+	update_progress(day_counter, total_days, avg(last_fetch), threads)

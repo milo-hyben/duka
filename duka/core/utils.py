@@ -12,125 +12,128 @@ SUNDAY = 7
 
 
 class TimeFrame(object):
-    TICK = 0
-    S_30 = 30
-    M1 = 60
-    M2 = 120
-    M5 = 300
-    M10 = 600
-    M15 = 900
-    M30 = 1800
-    H1 = 3600
-    H4 = 14400
-    D1 = 86400
+	TICK = 0
+	S_30 = 30
+	M1 = 60
+	M2 = 120
+	M5 = 300
+	M10 = 600
+	M15 = 900
+	M30 = 1800
+	H1 = 3600
+	H4 = 14400
+	D1 = 86400
 
 
 def valid_date(s):
-    try:
-        return datetime.strptime(s, "%Y-%m-%d").date()
-    except ValueError:
-        msg = "Not a valid date: '{0}'.".format(s)
-        raise argparse.ArgumentTypeError(msg)
+	try:
+		return datetime.strptime(s, "%Y-%m-%d").date()
+	except ValueError:
+		msg = "Not a valid date: '{0}'.".format(s)
+		raise argparse.ArgumentTypeError(msg)
 
 def valid_throtteling(timeframes_attr):
-    res = []
-    split = timeframes_attr.split("/")
-    if not len(split) is 2:
-        msg = "Throtteling needs to be 2 numbers e.g. 50/5. It was: '{0}'.".format(split)
-        raise argparse.ArgumentTypeError(msg)
-    for s in split:
-        try:
-            res.append(int(s))
-        except ValueError:
-            msg = "Throtteling: Not a valid number: '{0}'.".format(s)
-            raise argparse.ArgumentTypeError(msg)
-    return res
+	res = []
+	print(timeframes_attr)
+	if timeframes_attr == 'none':
+		return None
+	split = timeframes_attr.split("/")
+	if not len(split) is 2:
+		msg = "Throtteling needs to be 2 numbers e.g. 50/5. It was: '{0}'.".format(split)
+		raise argparse.ArgumentTypeError(msg)
+	for s in split:
+		try:
+			res.append(int(s))
+		except ValueError:
+			msg = "Throtteling: Not a valid number: '{0}'.".format(s)
+			raise argparse.ArgumentTypeError(msg)
+	return res
 
 def valid_timeframes(timeframes_attr):
-    res = []
-    for s in timeframes_attr.split(","):
-        try:
-            res.append(getattr(TimeFrame, s.upper()))
-        except AttributeError:
-            msg = "Not a valid time frame: '{0}'.".format(s)
-            raise argparse.ArgumentTypeError(msg)
-    return res
+	res = []
+	for s in timeframes_attr.split(","):
+		try:
+			res.append(getattr(TimeFrame, s.upper()))
+		except AttributeError:
+			msg = "Not a valid time frame: '{0}'.".format(s)
+			raise argparse.ArgumentTypeError(msg)
+	return res
 
 
 def is_debug_mode():
-    log_env = os.getenv('LOG', None)
-    if log_env is not None:
-        return log_env.upper() == 'DEBUG'
-    else:
-        return False
+	log_env = os.getenv('LOG', None)
+	if log_env is not None:
+		return log_env.upper() == 'DEBUG'
+	else:
+		return False
 
 
 def get_logger():
-    logger = logging.getLogger('duka')
-    if is_debug_mode():
-        out_hdlr = logging.StreamHandler(sys.stdout)
-        out_hdlr.setFormatter(logging.Formatter(TEMPLATE))
-        out_hdlr.setLevel(logging.INFO)
-        logger.addHandler(out_hdlr)
-        logger.setLevel(logging.INFO)
-    else:
-        logger.addHandler(logging.NullHandler())
-    return logger
+	logger = logging.getLogger('duka')
+	if is_debug_mode():
+		out_hdlr = logging.StreamHandler(sys.stdout)
+		out_hdlr.setFormatter(logging.Formatter(TEMPLATE))
+		out_hdlr.setLevel(logging.INFO)
+		logger.addHandler(out_hdlr)
+		logger.setLevel(logging.INFO)
+	else:
+		logger.addHandler(logging.NullHandler())
+	return logger
 
 
 Logger = get_logger()
 
 
 def set_up_signals():
-    def signal_handler(signal, frame):
-        sys.exit(0)
+	def signal_handler(signal, frame):
+		sys.exit(0)
 
-    signal.signal(signal.SIGINT, signal_handler)
+	signal.signal(signal.SIGINT, signal_handler)
 
 
 DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S.%f'
 
 
 def to_utc_timestamp(time_str):
-    return time.mktime(from_time_string(time_str).timetuple())
+	return time.mktime(from_time_string(time_str).timetuple())
 
 
 def from_time_string(time_str):
-    if '.' not in time_str:
-        time_str += '.0'
-    return datetime.strptime(time_str, DATETIME_FORMAT)
+	if '.' not in time_str:
+		time_str += '.0'
+	return datetime.strptime(time_str, DATETIME_FORMAT)
 
 
 def stringify(timestamp):
-    return str(datetime.fromtimestamp(timestamp))
+	return str(datetime.fromtimestamp(timestamp))
 
 
 def find_sunday(year, month, position):
-    start = date(year, month, 1)
-    day_delta = timedelta(days=1)
-    counter = 0
+	start = date(year, month, 1)
+	day_delta = timedelta(days=1)
+	counter = 0
 
-    while True:
-        if start.isoweekday() == SUNDAY:
-            counter += 1
-        if counter == position:
-            return start
-        start += day_delta
+	while True:
+		if start.isoweekday() == SUNDAY:
+			counter += 1
+		if counter == position:
+			return start
+		start += day_delta
 
 
 def find_dst_begin(year):
-    """
-    DST starts the second sunday of March
-    """
-    return find_sunday(year, 3, 2)
+	"""
+	DST starts the second sunday of March
+	"""
+	return find_sunday(year, 3, 2)
 
 
 def find_dst_end(year):
-    """
-    DST ends the first sunday of November
-    """
-    return find_sunday(year, 11, 1)
+	"""
+	DST ends the first sunday of November
+	"""
+	return find_sunday(year, 11, 1)
 
 
 def is_dst(day):
-    return day >= find_dst_begin(day.year) and day < find_dst_end(day.year)
+	return day >= find_dst_begin(day.year) and day < find_dst_end(day.year)
