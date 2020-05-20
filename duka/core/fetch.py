@@ -38,9 +38,9 @@ throttler = None
 ATTEMPTS = 5
 #cachedCount = 0
 
-async def get(url):
+async def get(url, hour):
 	global throttler #, cachedCount
-	print(url)
+	# print(url)
 	loop = asyncio.get_event_loop()
 	buffer = BytesIO()
 	id = url[35:].replace('/', " ")
@@ -66,8 +66,8 @@ async def get(url):
 				Logger.info("Fetched {0} completed in {1}s".format(id, time.time() - start))
 				if len(buffer.getbuffer()) <= 0:
 					Logger.info("Buffer for {0} is empty ".format(id))
-				print('done.')
-				return buffer.getbuffer()
+				# print('done.')
+				return hour, buffer.getbuffer()
 			else:
 				Logger.warn("Request to {0} failed with error code : {1} ".format(url, str(res.status_code)))
 		except Exception as e:
@@ -101,7 +101,7 @@ def create_tasks(symbol, day, throtteling):
 		'month': day.month - 1,
 		'day': day.day
 	}
-	tasks = [asyncio.ensure_future(get(URL.format(**url_info, hour=i))) for i in range(0, 24)] #24
+	tasks = [asyncio.ensure_future(get(URL.format(**url_info, hour=i), i)) for i in range(0, 24)] #24
 
 	# if is_dst(day):
 	#     next_day = day + datetime.timedelta(days=1)
@@ -115,6 +115,7 @@ def create_tasks(symbol, day, throtteling):
 	return tasks
 
 
+
 def fetch_day(symbol, day, throtteling):
 	local_data = threading.local()
 	loop = getattr(local_data, 'loop', asyncio.new_event_loop())
@@ -124,7 +125,10 @@ def fetch_day(symbol, day, throtteling):
 	loop.run_until_complete(asyncio.wait(tasks))
 
 	def add(acc, task):
-		acc.write(task.result())
+		hr, res = task.result()
+		f = BytesIO()
+		f.write(res)
+		acc.update({hr: f})
 		return acc
 
-	return reduce(add, tasks, BytesIO()).getbuffer()
+	return reduce(add, tasks, {})

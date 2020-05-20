@@ -35,34 +35,10 @@ def tokenize(buffer):
     return tokens
 
 
-def add_hour(ticks):
-    if len(ticks) is 0:
-        return ticks
-
-    hour_delta = 0
-
-    if ticks[0][0].weekday() == 6 or (ticks[0][0].day == 1 and ticks[0][0].month == 1):
-        if is_dst(ticks[0][0].date()):
-            hour_delta = 21
-        else:
-            hour_delta = 22
-
-    for index, v in enumerate(ticks):
-        if index != 0:
-            if ticks[index - 1][0].minute > ticks[index][0].minute:
-                hour_delta = ticks[index - 1][0].hour + 1
-            else:
-                hour_delta = ticks[index - 1][0].hour
-        ticks[index] = (v[0] + timedelta(hours=hour_delta), v[1], v[2], v[3], v[4])
-
-    return ticks
-
-
-def normalize(symbol, day, local_time, ticks):
+def normalize(symbol, day, local_time, hour, ticks):
     def norm(time, ask, bid, volume_ask, volume_bid):
-        #print(time)
         #date.replace(tzinfo=datetime.tzinfo("UTC"))
-        date = datetime(day.year, day.month, day.day) + timedelta(milliseconds=time)
+        date = datetime(day.year, day.month, day.day, hour) + timedelta(milliseconds=time)
 
         if local_time:
             date.replace(tzinfo=tz.tzlocal())
@@ -71,15 +47,24 @@ def normalize(symbol, day, local_time, ticks):
 
         point = 100000
         #print(symbol.upper())
-        if symbol.upper() in ['USDRUB', 'XAGUSD', 'XAUUSD', 'USA500IDXUSD']:
+        if symbol.upper() in ['USDRUB', 'XAGUSD', 'XAUUSD'] or 'IDX' in symbol.upper():
             point = 1000
 
         return date, ask / point, bid / point, round(volume_ask * 1000000), round(volume_bid * 1000000)
 
-    return add_hour(list(map(lambda x: norm(*x), ticks)))
+    return list(map(lambda x: norm(*x), ticks))
 
 
-def decompress(symbol, day, local_time, compressed_buffer):
-    if compressed_buffer.nbytes == 0:
-        return compressed_buffer
-    return normalize(symbol, day, local_time, tokenize(decompress_lzma(compressed_buffer)))
+def decompress(symbol, day, local_time, buffer_map):
+    ticks = []
+    for hour, buffer_value in buffer_map.items():
+        compressed_buffer = buffer_value.getbuffer()
+        if compressed_buffer.nbytes != 0:
+            ticks.extend(
+                normalize(
+                    symbol, day, local_time, hour,
+                    tokenize(decompress_lzma(compressed_buffer))
+                )
+            )
+
+    return ticks
